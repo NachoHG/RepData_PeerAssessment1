@@ -7,19 +7,61 @@ output:
 
 
 ## Loading and preprocessing the data
-
-
+```{r loaddata}
+unzip(zipfile = "activity.zip")
+data <- read.csv("activity.csv")
+head(data, 2)
+```
 
 ## What is mean total number of steps taken per day?
-
-
+```{r mean}
+totalsteps <- data.frame(totalSteps=tapply(data$steps, data$date, sum, na.rm=TRUE))
+totalsteps
+hist(totalsteps$totalSteps)
+meansteps <- data.frame(meanSteps=tapply(data$steps, data$date, mean, na.rm=TRUE))
+meansteps
+mediansteps <- data.frame(medianSteps=tapply(data$steps, data$date, median, na.rm=TRUE))
+mediansteps
+```
 
 ## What is the average daily activity pattern?
+```{r}
+# install.packages("lubridate")
+library(lubridate)
+df <- ts(meansteps, start = decimal_date(as.Date("2012-10-01")), frequency = 365)
+plot(df)
 
-
+meansteps2 <- data.frame(meanSteps=tapply(data$steps, data$interval, mean, na.rm=TRUE))
+meansteps2$interval <- row.names(meansteps2)
+#The maximum number of steps is contained in this 5-minutes interval:
+meansteps2[which.max(meansteps2$meanSteps),"interval"]
+```
 
 ## Imputing missing values
+```{r}
+# The total number of missing values is:
+sum(!complete.cases(data))
+datasteps2 <- merge(data, meansteps2, "interval")
+datasteps2[is.na(datasteps2$steps),]$steps <- datasteps2[is.na(datasteps2$steps),]$meanSteps
+datasteps2$meanSteps <- NULL
+datasteps2 <- datasteps2[,c("steps", "date", "interval")]
+# This dataset is like the first one but after imputing missing values by the mean (interval):
+head(datasteps2)
 
-
+totalsteps2 <- data.frame(totalSteps=tapply(datasteps2$steps, datasteps2$date, sum, na.rm=TRUE))
+hist(totalsteps2$totalSteps)
+data.frame(meanSteps=tapply(datasteps2$steps, datasteps2$date, mean, na.rm=TRUE))
+data.frame(medianSteps=tapply(totalsteps2$totalSteps, totalsteps2$totalSteps, median, na.rm=TRUE))
+```
+Mean and median are higher in this case, because replacing "NA" or missing steps (in which the value was 0) into the median of the steps (a numeric value different from 0), the result has to be higher.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r weekday or weekend}
+datasteps2$weekday <- weekdays(as.Date(datasteps2$date))
+datasteps2$day <- ifelse(datasteps2$weekday%in%c("sábado", "domingo"), "weekend", "weekday" )
+averages <- aggregate(steps ~ interval + day, data=datasteps2, mean)
+par(mfrow=c(2,1))
+plot(averages[averages$day=="weekday",]$steps, type="l", xlab="5-minute interval", ylab="Number of steps", main="weekday")
+plot(averages[averages$day=="weekend",]$steps, type="l", xlab="5-minute interval", ylab="Number of steps", main="weekend")
+
+```
